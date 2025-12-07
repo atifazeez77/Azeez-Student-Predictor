@@ -5,179 +5,250 @@ from sklearn.linear_model import LinearRegression
 import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from fpdf import FPDF
-import base64
 
 # --- CONFIGURATION & BRANDING ---
-st.set_page_config(page_title="Azeez Student Predictor", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Azeez Horizon Hub", page_icon="🎓", layout="wide")
 
-# Custom CSS to hide Streamlit branding and add Azeez Horizon style
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            .stButton>button {
-                background-color: #4CAF50;
-                color: white;
-                border-radius: 10px;
-                width: 100%;
-            }
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# Custom CSS for that "Premium EdTech" look
+st.markdown("""
+    <style>
+    .main {background-color: #F5F5F5;}
+    h1 {color: #2E86C1;}
+    .stButton>button {background-color: #2E86C1; color: white; border-radius: 8px;}
+    .stTabs [data-baseweb="tab-list"] {gap: 10px;}
+    .stTabs [data-baseweb="tab"] {background-color: #FFFFFF; border-radius: 4px; padding: 10px 20px;}
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {background-color: #2E86C1; color: white;}
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- BACKEND: GOOGLE SHEETS ---
-def save_to_sheet(name, phone, score):
+# --- BACKEND: GOOGLE SHEETS (Keep your existing setup) ---
+def save_to_sheet(name, phone, score, service_interest):
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-        # Check if secrets exist (for Cloud) or handle gracefully
         if "gcp_service_account" in st.secrets:
             creds_dict = st.secrets["gcp_service_account"]
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             client = gspread.authorize(creds)
             sheet = client.open("Azeez_Leads").sheet1
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sheet.append_row([name, phone, str(score), current_time])
+            sheet.append_row([name, phone, str(score), service_interest, current_time])
             return True
-        else:
-            st.error("Database secret not found.")
-            return False
-    except Exception as e:
-        st.error(f"Database Error: {e}")
+        return False
+    except:
         return False
 
-# --- FEATURE: PDF GENERATOR ---
-def create_pdf(name, score, hours, sleep, advice):
+# --- FEATURE: SMART PDF GENERATOR ---
+def create_pro_pdf(name, score, hours, weak_subject, advice):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
     
-    # Header
-    pdf.cell(200, 10, txt="Azeez Horizon: Student Report", ln=1, align='C')
-    pdf.line(10, 20, 200, 20)
+    # 1. HEADER
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(46, 134, 193) # Brand Blue
+    pdf.cell(0, 10, "Azeez Horizon: Student Success Report", 0, 1, 'C')
+    pdf.line(10, 25, 200, 25)
     
-    # Content
-    pdf.set_font("Arial", size=12)
+    # 2. STUDENT DETAILS
     pdf.ln(20)
-    pdf.cell(200, 10, txt=f"Student Name: {name}", ln=1)
-    pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%d-%b-%Y')}", ln=1)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(100, 10, f"Student Name: {name}", 0, 0)
+    pdf.cell(90, 10, f"Date: {datetime.now().strftime('%d-%b-%Y')}", 0, 1, 'R')
+    
+    # 3. SCORE & ADVICE
     pdf.ln(10)
+    pdf.set_font("Arial", 'B', 16)
+    color = (0, 128, 0) if score > 70 else (255, 0, 0)
+    pdf.set_text_color(*color)
+    pdf.cell(0, 10, f"AI Predicted Score: {score}%", 0, 1, 'C')
+    
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, txt=f"\nPersonalized Advice: {advice}\nFocus Area: You need to give 40% of your time to {weak_subject}.")
+    
+    # 4. BRANDING & SERVICES (The Marketing Part)
+    pdf.ln(20)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.rect(10, pdf.get_y(), 190, 110, 'F') # Light grey background box
     
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, txt=f"AI Predicted Score: {score}%", ln=1)
+    pdf.cell(0, 10, "  Our Premium Services (Azeez Horizon)", 0, 1)
     
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt=f"Study Hours: {hours} hrs | Sleep: {sleep} hrs", ln=1)
-    pdf.ln(10)
+    pdf.set_font("Arial", size=10)
+    services_text = """
+    1. Home Tuition (Class 1 to 10)
+       - Qualified tutors | Result-oriented | Safe & reliable
+       
+    2. Online Educational Form Filling
+       - Admission forms | Scholarships | Govt schemes | Exam forms
+       
+    3. Student Mentorship
+       - Career guidance | Discipline | Mindset building | Study planning
+       
+    4. Azeez Library
+       - Separate area for girls | Full-day study space | Silent & premium environment
+       
+    5. Azeez Classes (CBSE / ICSE)
+       - Class 6 to 10 Coaching | Concept-based teaching | Personalized support
+    """
+    pdf.multi_cell(0, 7, services_text)
     
-    pdf.set_text_color(255, 0, 0) if score < 60 else pdf.set_text_color(0, 128, 0)
-    pdf.multi_cell(0, 10, txt=f"Guidance: {advice}")
-    
-    # Footer
-    pdf.set_y(-30)
-    pdf.set_text_color(100, 100, 100)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 10, "Generated by Azeez Library & Classes AI System", 0, 0, 'C')
+    pdf.set_y(-20)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.cell(0, 10, "Visit Azeez Library & Classes for more details.", 0, 0, 'C')
     
     return pdf.output(dest='S').encode('latin-1')
 
-# --- ML MODEL (Hidden Logic) ---
-# Training Data (Hidden from user)
-data = {
-    'Study_Hours': [2, 4, 6, 8, 10, 3, 5, 7, 9, 12],
-    'Prev_Marks': [50, 60, 75, 85, 95, 55, 70, 80, 90, 98],
-    'Sleep_Hours': [9, 8, 7, 7, 8, 8, 7, 6, 8, 8],
-    'Final_Score': [55, 65, 82, 88, 98, 58, 72, 85, 93, 99]
-}
-df = pd.DataFrame(data)
-X = df[['Study_Hours', 'Prev_Marks', 'Sleep_Hours']]
-y = df['Final_Score']
+# --- LOGIC: SCHEDULE MAKER ---
+def make_schedule(hours, weak_sub):
+    # Logic: 40% time to weak subject, rest divided
+    slot_duration = 60 # minutes
+    start_time = datetime.strptime("16:00", "%H:%M") # Start at 4 PM
+    
+    schedule_data = []
+    
+    # Add Weak Subject First
+    weak_time = max(1, int(hours * 0.4))
+    for i in range(weak_time):
+        end_time = start_time + timedelta(minutes=60)
+        schedule_data.append({
+            "Time Slot": f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}",
+            "Subject": f"{weak_sub} (Priority Focus)",
+            "Activity": "Concept Reading & Notes"
+        })
+        start_time = end_time
+
+    # Add Other Subjects
+    remaining = int(hours - weak_time)
+    subjects = ["Maths", "Science", "English", "SST"]
+    subjects = [s for s in subjects if s != weak_sub] # Remove weak sub from list
+    
+    for i in range(remaining):
+        sub = subjects[i % len(subjects)]
+        end_time = start_time + timedelta(minutes=60)
+        schedule_data.append({
+            "Time Slot": f"{start_time.strftime('%I:%M %p')} - {end_time.strftime('%I:%M %p')}",
+            "Subject": sub,
+            "Activity": "Practice Questions / Homework"
+        })
+        start_time = end_time
+        
+    return pd.DataFrame(schedule_data)
+
+# --- ML MODEL INIT ---
+# (Using dummy data for instant start)
+data = {'Study_Hours': [2, 4, 6, 8, 10, 3, 5, 7, 9, 12], 'Prev_Marks': [50, 60, 75, 85, 95, 55, 70, 80, 90, 98], 'Sleep_Hours': [9, 8, 7, 7, 8, 8, 7, 6, 8, 8], 'Final_Score': [55, 65, 82, 88, 98, 58, 72, 85, 93, 99]}
 model = LinearRegression()
-model.fit(X, y)
+model.fit(pd.DataFrame(data)[['Study_Hours', 'Prev_Marks', 'Sleep_Hours']], pd.DataFrame(data)['Final_Score'])
 
-# --- UI LAYOUT ---
-st.title("🚀 Azeez Horizon")
-st.subheader("AI Performance Predictor")
-st.markdown("Enter your daily habits to see your future Board Exam Score.")
+# ================= UI STARTS HERE =================
+st.title("🚀 Azeez Horizon: Student Hub")
 
-col1, col2 = st.columns(2)
+# Create Tabs
+tab1, tab2, tab3, tab4 = st.tabs(["🔮 Predict Score", "📅 My Schedule", "📚 Resources", "🏢 About Us"])
 
-with col1:
-    name = st.text_input("Name")
-    prev = st.number_input("Last Exam %", 0, 100, 65)
+# --- TAB 1: PREDICTION ---
+with tab1:
+    st.subheader("Check your Exam Readiness")
+    col1, col2 = st.columns(2)
+    with col1:
+        name = st.text_input("Student Name")
+        prev = st.number_input("Last Class Percentage", 0, 100, 60)
+        weak_sub = st.selectbox("Weakest Subject?", ["Maths", "Science", "SST", "English", "Hindi"])
+    with col2:
+        hours = st.slider("Daily Self Study (Hours)", 1, 12, 4)
+        sleep = st.slider("Sleep Hours", 4, 12, 7)
 
-with col2:
-    hours = st.slider("Study Hours (Daily)", 0, 14, 4)
-    sleep = st.slider("Sleep Hours", 4, 12, 7)
-
-# --- PREDICTION LOGIC ---
-if st.button("Analyze My Future 🔮"):
-    if name:
-        with st.spinner("Analyzing Study Patterns..."):
-            time.sleep(1.5) # Suspense
+    if st.button("Analyze & Generate Report", key="predict"):
+        if name:
+            # Prediction
+            pred = model.predict([[hours, prev, sleep]])[0]
+            final_score = min(99.9, max(0, round(pred, 1)))
             
-            # Predict
-            user_input = np.array([[hours, prev, sleep]])
-            predicted_score = round(model.predict(user_input)[0], 1)
-            if predicted_score > 100: predicted_score = 99.5
-            if predicted_score < 0: predicted_score = 0
-            
-            # Hinglish Advice Logic
-            if predicted_score >= 90:
-                advice = "Excellent! You are on Topper track. Focus on solving Sample Papers now."
+            # Advice Logic
+            if final_score > 90:
+                advice = "Excellent! Maintain consistency. Focus on solving previous year papers."
                 color = "green"
-            elif predicted_score >= 70:
-                advice = "Good job! Thoda aur push karo, 90+ possible hai. consistency maintain rakho."
+            elif final_score > 70:
+                advice = f"Good! But you need to improve {weak_sub}. Spend 1 extra hour on it."
                 color = "blue"
             else:
-                advice = "Alert! You need to change your routine. Join Azeez Library for focused study."
+                advice = "Critical! Your current routine is not enough. You need professional guidance immediately."
                 color = "red"
 
-            # 1. DISPLAY RESULT
+            # Display
             st.markdown("---")
-            st.markdown(f"<h2 style='text-align: center; color: {color};'>{predicted_score}%</h2>", unsafe_allow_html=True)
-            st.info(f"💡 **Advice:** {advice}")
+            st.markdown(f"<h1 style='text-align: center; color: {color};'>{final_score}%</h1>", unsafe_allow_html=True)
+            st.info(f"💡 **Azeez Sir Says:** {advice}")
 
-            # 2. VISUALIZATION (Comparison Graph)
-            st.write("### 📊 Where do you stand?")
-            fig, ax = plt.subplots(figsize=(6, 3))
-            categories = ['Average Student', 'Topper', 'YOU']
-            scores = [65, 95, predicted_score]
-            colors = ['gray', 'green', color]
+            # PDF Download
+            pdf_data = create_pro_pdf(name, final_score, hours, weak_sub, advice)
+            st.download_button("📄 Download Full Report (PDF)", pdf_data, file_name=f"{name}_Azeez_Report.pdf", mime="application/pdf")
             
-            ax.barh(categories, scores, color=colors)
-            ax.set_xlim(0, 100)
-            st.pyplot(fig)
-
-            # 3. DOWNLOAD REPORT (The Pro Feature)
-            pdf_bytes = create_pdf(name, predicted_score, hours, sleep, advice)
-            st.download_button(
-                label="📄 Download Official Report Card",
-                data=pdf_bytes,
-                file_name=f"{name}_Azeez_Report.pdf",
-                mime="application/pdf"
-            )
+            # Save to session for Schedule Tab
+            st.session_state['run_schedule'] = True
+            st.session_state['user_hours'] = hours
+            st.session_state['user_weak'] = weak_sub
             
-            # Store for Lead Gen
-            st.session_state['score'] = predicted_score
-            st.session_state['name'] = name
+            # Lead Gen Form
+            if final_score < 85:
+                st.warning("⚠️ Score is below target. Book a free counselling session.")
+                with st.form("lead_gen"):
+                    phone = st.text_input("Phone Number")
+                    if st.form_submit_button("Request Call Back"):
+                        save_to_sheet(name, phone, final_score, "Coaching Enquiry")
+                        st.success("We will call you shortly!")
 
+# --- TAB 2: SCHEDULER ---
+with tab2:
+    st.header("📅 Your AI Generated Schedule")
+    if 'run_schedule' in st.session_state:
+        st.write(f"Based on **{st.session_state['user_hours']} hours** of study, focusing on **{st.session_state['user_weak']}**:")
+        df_schedule = make_schedule(st.session_state['user_hours'], st.session_state['user_weak'])
+        st.table(df_schedule)
+        st.caption("Tip: Take a 10-minute break after every slot.")
     else:
-        st.warning("Please enter your name.")
+        st.info("Please run the Prediction in Tab 1 first to generate your schedule.")
 
-# --- LEAD GENERATION (Bottom) ---
-if 'score' in st.session_state and st.session_state['score'] < 85:
-    st.markdown("---")
-    st.write("### 🚀 Want to increase this score?")
-    st.write("Get a **Free Counselling Session** at Azeez Classes.")
+# --- TAB 3: RESOURCES ---
+with tab3:
+    st.header("📚 Study Materials")
+    st.write("Handpicked resources by Azeez Horizon.")
     
-    with st.form("lead_form"):
-        phone = st.text_input("Parent's Phone Number", placeholder="98XXXXXXXX")
-        submit = st.form_submit_button("Book Free Session")
-        
-        if submit and len(phone) == 10:
-            save_to_sheet(st.session_state['name'], phone, st.session_state['score'])
-            st.success("Request Sent! We will contact you.")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("### 📘 Class 9 & 10")
+        st.link_button("Download NCERT Books", "https://ncert.nic.in/textbook.php")
+        st.link_button("CBSE Sample Papers", "https://cbseacademic.nic.in/")
+    with c2:
+        st.markdown("### 📝 Notes & Forms")
+        st.info("Contact Azeez Library for printed notes and form filling assistance.")
+
+# --- TAB 4: ABOUT AZEEZ HORIZON ---
+with tab4:
+    st.image("azeez_banner.jpg", use_container_width=True)
+    
+    st.markdown("### 🌟 Our Services")
+    
+    st.markdown("""
+    **1️⃣ Home Tuition (Class 1 to 10)**
+    * Qualified tutors • Result-oriented • Safe & reliable
+
+    **2️⃣ Online Educational Form Filling**
+    * Admission forms • Scholarships • Government schemes • Exam forms
+
+    **3️⃣ Student Mentorship**
+    * Career guidance • Discipline • Mindset building • Study planning
+
+    **4️⃣ Azeez Library**
+    * Separate area for girls • Full-day study space • Silent & premium environment
+
+    **5️⃣ Azeez Classes**
+    * CBSE / ICSE • Class 6 to 10 Coaching Classes
+    * Concept-based teaching • Discipline • Personalized support
+    """)
+    
+    st.success("📍 Visit us at: [Behind IRFAN BTI House, Malik Tahir Pura, Mau U.P. 275101]")
