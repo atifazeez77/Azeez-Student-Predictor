@@ -17,15 +17,50 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS STYLING (The "Pro" Look) ---
+# --- CSS STYLING (Fixed for Dark Mode) ---
 st.markdown("""
     <style>
-    .main {background-color: #f8f9fa;}
-    h1, h2, h3 {color: #2c3e50;}
-    .stButton>button {background-color: #2E86C1; color: white; border-radius: 8px; width: 100%;}
-    .stTabs [data-baseweb="tab-list"] {gap: 10px;}
-    .stTabs [data-baseweb="tab"] {background-color: #FFFFFF; border-radius: 4px; padding: 10px 20px;}
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {background-color: #2E86C1; color: white;}
+    /* Force main background color */
+    .stApp {
+        background-color: #0E1117;
+        color: white;
+    }
+    
+    /* Fix Tab Text Colors for Dark Mode */
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    
+    /* Active Tab Text Color */
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #2E86C1 !important;
+        color: white !important;
+    }
+    
+    /* Inactive Tab Text Color (Make it readable) */
+    .stTabs [data-baseweb="tab"] {
+        background-color: #262730; 
+        color: #FAFAFA;
+    }
+
+    /* Buttons */
+    .stButton>button {
+        background-color: #2E86C1; 
+        color: white; 
+        border-radius: 8px; 
+        width: 100%;
+        border: none;
+    }
+    
+    /* Metrics Box */
+    div[data-testid="metric-container"] {
+        background-color: #262730;
+        border: 1px solid #4F4F4F;
+        padding: 10px;
+        border-radius: 5px;
+        color: white;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -101,7 +136,6 @@ model.fit(pd.DataFrame(data)[['Study_Hours', 'Prev_Marks', 'Sleep_Hours']], pd.D
 # Sidebar Navigation
 with st.sidebar:
     st.title("Azeez Horizon")
-    # Tries to load your banner in sidebar, falls back to text if image missing
     try:
         st.image("azeez_banner.jpg", use_container_width=True)
     except:
@@ -110,14 +144,16 @@ with st.sidebar:
     st.markdown("---")
     page = st.radio("Go to:", ["🏠 Student Hub", "📊 Admin Dashboard"])
     st.markdown("---")
-    st.info("📍 **Mau, U.P. 275101**")
+    # --- FIX 1: FULL ADDRESS ---
+    st.info("📍 **Behind IRFAN BTI House, Malik Tahir Pura, Mau U.P. 275101**")
 
 # ================== PAGE 1: STUDENT HUB ==================
 if page == "🏠 Student Hub":
-    st.title("🎓 Azeez Student Success System")
+    # --- FIX 3: NEW TITLE ---
+    st.title("🚀 Let's predict your % with Azeez Library & Classes")
     st.write("Welcome to the future of learning. Predict your marks, get a schedule, and access resources.")
     
-    # ADDED TAB 4 HERE
+    # --- FIX 2: TABS (Colors fixed in CSS above) ---
     tab1, tab2, tab3, tab4 = st.tabs(["🔮 AI Predictor", "📅 Smart Schedule", "📚 Resources", "🏢 About Us"])
     
     # --- PREDICTOR TAB ---
@@ -139,10 +175,13 @@ if page == "🏠 Student Hub":
                 fig = go.Figure(go.Indicator(
                     mode = "gauge+number",
                     value = pred,
-                    title = {'text': "Predicted Score"},
-                    gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#2E86C1"},
-                             'steps': [{'range': [0, 50], 'color': "lightgray"}, {'range': [50, 85], 'color': "white"}]}
+                    title = {'text': "Predicted Score", 'font': {'color': 'white'}}, # White text for dark mode
+                    number = {'font': {'color': 'white'}},
+                    gauge = {'axis': {'range': [0, 100], 'tickcolor': "white"}, 
+                             'bar': {'color': "#2E86C1"},
+                             'steps': [{'range': [0, 50], 'color': "#444"}, {'range': [50, 85], 'color': "#666"}]}
                 ))
+                fig.update_layout(paper_bgcolor = "rgba(0,0,0,0)", font = {'color': "white"})
                 st.plotly_chart(fig, use_container_width=True)
                 
                 # Logic
@@ -183,7 +222,7 @@ if page == "🏠 Student Hub":
             schedule.append({"Time": "4:00 PM - 5:00 PM", "Subject": f"{st.session_state['weak']} (Priority)", "Type": "Concept Learning"})
             for i in range(int(st.session_state['hours']) - 1):
                 t = 5 + i
-                if t > 12: t = t - 12 # Simple time format fix
+                if t > 12: t = t - 12
                 sub = subjects[i % len(subjects)]
                 schedule.append({"Time": f"{t}:00 - {t+1}:00", "Subject": sub, "Type": "Practice"})
             
@@ -199,15 +238,13 @@ if page == "🏠 Student Hub":
         st.write(f"Showing resources for: **{selected_sub}**")
         st.info("Contact Azeez Library for full printed notes.")
 
-    # --- TAB 4: ABOUT US (UPDATED) ---
+    # --- TAB 4: ABOUT US ---
     with tab4:
         st.header("🏢 About Azeez Horizon")
-        
-        # --- YOUR IMAGE CODE HERE ---
         try:
             st.image("azeez_banner.jpg", use_container_width=True)
         except:
-            st.error("Image 'azeez_banner.jpg' not found. Please upload it to your project folder.")
+            pass
 
         st.markdown("### 🌟 Our Services")
         
@@ -232,7 +269,6 @@ if page == "🏠 Student Hub":
             """)
 
         st.markdown("---")
-        # --- YOUR ADDRESS CODE HERE ---
         st.success("📍 Visit us at: Behind IRFAN BTI House, Malik Tahir Pura, Mau U.P. 275101")
 
 # ================== PAGE 2: ADMIN DASHBOARD ==================
@@ -257,9 +293,11 @@ elif page == "📊 Admin Dashboard":
             g1, g2 = st.columns(2)
             with g1:
                 fig_pie = px.pie(df, names='Interest', title='Lead Categories')
+                fig_pie.update_layout(paper_bgcolor = "rgba(0,0,0,0)", font = {'color': "white"})
                 st.plotly_chart(fig_pie, use_container_width=True)
             with g2:
                 fig_bar = px.bar(df, x='Name', y='Score', title='Student Score Analysis')
+                fig_bar.update_layout(paper_bgcolor = "rgba(0,0,0,0)", font = {'color': "white"})
                 st.plotly_chart(fig_bar, use_container_width=True)
             
             st.subheader("📋 Lead Database")
